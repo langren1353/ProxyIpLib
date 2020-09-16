@@ -24,6 +24,9 @@ class CreateProxyIpsTable extends Migration
             $table->string('isp', 20)->comment('ISP 运营商');
             $table->integer('speed')->comment('响应速度 毫秒');
             $table->timestamp('validated_at')->comment('最新校验时间');
+            $table->integer('success_count')->default(1)->comment('抓取成功次数'); // 成功次数多的数据排序优先返回
+            $table->integer('failed_count')->default(0)->comment('抓取失败次数');  // 失败次数过多需要对数据进行删除
+            $table->double('success_ratio')->default(0.01)->comment('成功比例；10次以上才计算');  // 失败次数过多需要对数据进行删除
 
             $table->timestamps();
 

@@ -31,6 +31,7 @@
                         <th>响应速度</th>
                         <th>存活时间</th>
                         <th>最后验证时间</th>
+                        <th>成功比例</th>
                         <th></th>
                     </tr>
                     </thead>
@@ -47,6 +48,7 @@
                             <td>{{ \App\Http\Common\Helper::formatSpeed($proxy_ip->speed) }}</td>
                             <td>{{ \App\Http\Common\Helper::formatDateDay($proxy_ip->created_at) }}</td>
                             <td>{{ $proxy_ip->validated_at }}</td>
+                            <td>{{ $proxy_ip->success_count }} / {{ ($proxy_ip->success_count + $proxy_ip->failed_count) }}</td>
                             <td>
                                 <button class="layui-btn layui-btn-sm btn-copy"
                                         data-url="{{ sprintf("%s://%s:%s",$proxy_ip->protocol,$proxy_ip->ip,$proxy_ip->port) }}"
@@ -118,13 +120,13 @@
                 <div class="layui-form-item layui-form-text">
                     <label for="message-text" class="layui-form-label">访问地址</label>
                     <div class="layui-input-block">
-                        <input class="layui-input" id="web-link" value="http://www.baidu.com">
+                        <input class="layui-input" id="web-link" value="https://api.ipify.org/?format=jsonp">
                     </div>
                 </div>
                 <div class="layui-form-item layui-form-text">
                     <label for="message-text" class="layui-form-label">访问结果</label>
                     <div class="layui-input-block">
-                        <iframe  id="proxy-iframe" style="min-height: 300px;width: 100%" name="proxy-iframe"></iframe>
+                        <iframe id="proxy-iframe" style="min-height: 300px;width: 100%" name="proxy-iframe"></iframe>
                     </div>
                 </div>
             </form>
@@ -243,7 +245,10 @@
                     ipSpeed();
                 },
                 cancel: function (index, layero) {
+                    $('#proxy-iframe').contents().find("html").html("");
+                    $('#proxy-iframe').attr('src', "");
                     pageConfig.autoRefresh = true;
+                    layer.closeAll();
                 }
             });
         });

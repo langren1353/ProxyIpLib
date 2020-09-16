@@ -51,12 +51,14 @@ class ProxyIpController extends Controller
      *
      * @param Request $request
      * @param ProxyIpBusiness $proxy_ip_business
-     * @return array
+     * @return string
      * @author jiangxianli
      * @created_at 2017-12-26 15:18:46
      */
     public function proxyIpRequestWebSiteCheck(Request $request, ProxyIpBusiness $proxy_ip_business)
     {
+
+
         $protocol = $request->get('protocol');
 
         $ip = $request->get('ip');

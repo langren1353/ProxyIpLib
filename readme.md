@@ -1,4 +1,13 @@
 # 免费代理IP库
+# 安装教程：
+>先对数据库进行初始化安装配置  
+>>php artisan migrate  
+>
+>然后对Config文件进行配置
+> * 注意查看错误日志文件 /ProxyIpLib/storage/logs
+> * 配置对应的数据库文件
+> * 配置对应的redis环境
+> * 按需对php环境的某些函数进行禁用
 
 ### 警告
 代理IP采集于网络，仅供个人学习使用。请勿用于非法途径，违者后果自负！
@@ -35,7 +44,7 @@
 |page|int|N|第几页|1|
 |country|string|N|所属国|中国,美国|
 |isp|string|N|ISP|电信,阿里云|
-|order_by|string|N|排序字段|speed:响应速度,validated_at:最新校验时间 created_at:存活时间|
+|order_by|string|N|排序字段|speed:响应速度,validated_at:最新校验时间 created_at:存活时间 success_ratio: 成功比例|
 |order_rule|string|N|排序方向|DESC:降序 ASC:升序|
 * 响应数据
 ```json

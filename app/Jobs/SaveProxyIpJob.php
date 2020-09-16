@@ -94,6 +94,9 @@ class SaveProxyIpJob extends Job
         }
 
         try {
+
+            app("Logger")->info("检测代理", [$this->ip, $this->port, $this->protocol]);
+
             //速度检测
             $proxy_ip_business->ipSpeedCheck($this->ip, $this->port, $this->protocol);
             //添加 代理IP
@@ -102,12 +105,7 @@ class SaveProxyIpJob extends Job
         } catch (\Exception $exception) {
             app("Logger")->error("代理IP入库失败", [
                 'host'       => $this->host,
-                'ip'         => $this->ip,
-                'port'       => $this->port,
-                'protocol'   => $this->protocol,
-                'anonymity'  => $this->anonymity,
-                'error_code' => $exception->getCode(),
-                'error_msg'  => method_exists($exception, 'formatError') ? $exception->formatError() : $exception->getMessage(),
+                'error_msg'  => method_exists($exception, 'formatError') ? $exception->formatError() :  str_replace(" (see https://curl.haxx.se/libcurl/c/libcurl-errors.html)", "", $exception->getMessage()),
             ]);
         }
 

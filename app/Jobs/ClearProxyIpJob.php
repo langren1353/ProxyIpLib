@@ -44,42 +44,49 @@ class ClearProxyIpJob extends Job
      */
     public function handle(ProxyIpBusiness $proxy_ip_business)
     {
+
         //超时
         if ($this->expired_at <= time()) {
             return;
         }
 
         //检查是否存在
-        $ip = $proxy_ip_business->getProxyIpList([
+        $proxy_ip = $proxy_ip_business->getProxyIpList([
             'unique_id' => $this->proxy_ip['unique_id'],
             'first'     => 'true'
         ]);
-        if (!$ip) {
+
+        if (!$proxy_ip) {
             return;
         }
-
-        $redis = app('redis');
-        $ip_cache_map = "proxy_ips:clear-ip-cache-map";
-        $cache_key = sprintf("%s://%s:%s", $this->proxy_ip['protocol'], $this->proxy_ip['ip'], $this->proxy_ip['port']);
-        //获取已失败次数
-        $ip_cache_times = $redis->hget($ip_cache_map, $cache_key);
-        if (!empty($ip_cache_times) && $ip_cache_times >= 2) {
-            $proxy_ip_business->deleteProxyIp($this->proxy_ip['unique_id']);
-            $redis->hdel($ip_cache_map, $cache_key);
-            return;
+        $success_count = $proxy_ip['success_count'];
+        $failed_count = $proxy_ip['failed_count'];
+        $total_count = $success_count + $failed_count;
+        $success_ratio = 0;
+        if ($total_count > 10) {
+            // 一天24小时 * 6
+            $success_ratio = $success_count / $total_count;
+            // 失败次数较多，尝试删掉他
+            if($failed_count / $total_count > 0.4){
+                $proxy_ip_business->deleteProxyIp($proxy_ip['unique_id']);
+            }
         }
 
         try {
             //测速及可用性检查
-            $speed = $proxy_ip_business->ipSpeedCheck($this->proxy_ip['ip'], $this->proxy_ip['port'], $this->proxy_ip['protocol']);
+            $speed = $proxy_ip_business->ipSpeedCheck($proxy_ip['ip'], $proxy_ip['port'], $proxy_ip['protocol']);
             //更新测速信息
-            $proxy_ip_business->updateProxyIp($this->proxy_ip['unique_id'], [
+            $proxy_ip_business->updateProxyIp($proxy_ip['unique_id'], [
                 'speed'        => $speed,
                 'validated_at' => Carbon::now(),
+                'success_count'=> $proxy_ip['success_count'] + 1,
+                'success_ratio'=> $success_ratio,
             ]);
-            $redis->hdel($ip_cache_map, $cache_key);
         } catch (\Exception $exception) {
-            $redis->hset($ip_cache_map, $cache_key, empty($ip_cache_times) ? 1 : $ip_cache_times + 1);
+            $proxy_ip_business->updateProxyIp($proxy_ip['unique_id'], [
+                'failed_count' => $proxy_ip['failed_count'] + 1,
+                'success_ratio'=> $success_ratio,
+            ]);
         }
 
         usleep(0.2 * 1000 * 1000);

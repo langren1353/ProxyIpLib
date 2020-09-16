@@ -74,12 +74,26 @@ class ProxyIpLocationJob extends Job
                 $redis->hset($ip_location_key, $this->proxy_ip['ip'], json_encode($ip_location));
             }
 
-            //更新数据IP定位信息
-            $proxy_ip_business->updateProxyIp($this->proxy_ip['unique_id'], [
-                'isp'        => $ip_location['isp'],
-                'country'    => $ip_location['country'],
-                'ip_address' => $ip_location['country'] . ' ' . $ip_location['region'] . ' ' . $ip_location['city']
-            ]);
+            $isp = $ip_location['isp'] ?: '无效';
+            $country = $ip_location['country'] ?: '未知';
+
+            //TODO 更新数据IP定位信息
+            app("Logger")->info("当前IP".$this->proxy_ip['ip']."的ISP为：", [$isp]);
+
+            // 对于特定的某些ISP，进行移除
+            if(! (
+                    preg_match("/^(移动|联通|电信|DigitalOcean|Hetzner)$/", $isp)
+//                    && preg_match("/^(美国)$/", $country)
+            )){
+                $proxy_ip_business->updateProxyIp($this->proxy_ip['unique_id'], [
+                    'isp'        => $isp,
+                    'country'    => $country,
+                    'ip_address' => $country . ' ' . $ip_location['region'] . ' ' . $ip_location['city']
+                ]);
+            }else{
+                app("Logger")->info("删除可能性较小的IP：".$this->proxy_ip['ip']."对应ISP为：", [$isp]);
+                $proxy_ip_business->deleteProxyIp($this->proxy_ip['unique_id']);
+            }
 
         } catch (\Exception $exception) {
             app("Logger")->error("代理IP定位失败", [

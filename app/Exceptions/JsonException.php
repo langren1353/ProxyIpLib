@@ -18,7 +18,7 @@ class JsonException extends Exception
         ],
 
         '20000' => [
-            'msg' => '抓取返回内容错误!'
+            'msg' => '抓取返回内容不符!'
         ],
         '20001' => [
             'msg' => '响应时间过长!'

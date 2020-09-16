@@ -41,23 +41,24 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        //
-        $schedule->command('command:timer-clear-proxy-ip')->everyFiveMinutes()->runInBackground();
+        // timerClearProxyIp 定时检查任务
+        $schedule->command('command:timer-clear-proxy-ip')->cron("0 0/3 * * * *")->runInBackground();
         $schedule->command('command:proxy-ip-location')->everyMinute()->runInBackground();
         $schedule->command('command:grab-proxy-ip kuidaili')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip ip3366')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip 89ip')->everyTenMinutes();
-        $schedule->command('command:grab-proxy-ip xila')->everyTenMinutes();
+//        $schedule->command('command:grab-proxy-ip xila')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip emailtry')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip qinghua')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip xsdaili')->hourly();
         $schedule->command('command:grab-proxy-ip kxdaili')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip nima')->everyTenMinutes();
-        $schedule->command('command:grab-proxy-ip super')->everyTenMinutes();
-        $schedule->command('command:grab-proxy-ip xici')->everyTenMinutes();
+//        $schedule->command('command:grab-proxy-ip super')->everyTenMinutes();
+//        $schedule->command('command:grab-proxy-ip xici')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip foxtools')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip proxyList')->everyTenMinutes();
-        $schedule->command('command:grab-proxy-ip proxylistme')->everyTenMinutes();
+        $schedule->command('command:grab-proxy-ip seofangfa')->everyTenMinutes();
+//        $schedule->command('command:grab-proxy-ip proxylistme')->everyTenMinutes();
         $schedule->command('command:grab-proxy-ip checkerproxy')->dailyAt("02:00");
         $schedule->command('command:clear-cache-key-every-day')->dailyAt("20:00");
         $schedule->command('command:hot-ip-by-hours')->hourly()->runInBackground();

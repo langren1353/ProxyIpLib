@@ -12,8 +12,10 @@ use App\Jobs\ProxyIpLocationJob;
 use App\Jobs\SaveProxyIpJob;
 use Carbon\Carbon;
 use GuzzleHttp\Client;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use QL\Ext\AbsoluteUrl;
 use QL\QueryList;
+use Ip2Region;
 
 class ProxyIpBusiness
 {
@@ -39,7 +41,7 @@ class ProxyIpBusiness
      *
      * @var
      */
-    private $time_out = 8;
+    private $time_out = 12;
 
     /**
      * 日志路径
@@ -64,7 +66,7 @@ class ProxyIpBusiness
     }
 
     /**
-     * 抓取过程处理
+     * 抓取过程处理-从网页提取host:port
      *
      * @param $urls
      * @param $table_selector
@@ -86,12 +88,12 @@ class ProxyIpBusiness
                 //
                 $options = [
                     'headers' => [
-                        'Referer'                   => "http://$host/",
-                        'User-Agent'                => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
-                        'Accept'                    => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                        'Referer' => "http://$host/",
+                        'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
+                        'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                         'Upgrade-Insecure-Requests' => "1",
-                        'Host'                      => $host,
-                        'DNT'                       => "1",
+                        'Host' => $host,
+                        'DNT' => "1",
                     ],
                     'timeout' => $this->time_out
                 ];
@@ -119,7 +121,7 @@ class ProxyIpBusiness
                         //获取IP、端口、透明度、协议
                         list($ip, $port, $anonymity, $protocol) = $row;
                         //日志记录
-                        app("Logger")->info("提取到IP", [$host, sprintf("%s://%s:%s", $protocol, $ip, $port)]);
+//                        app("Logger")->info("提取到IP", [$host, sprintf("%s://%s:%s", $protocol, $ip, $port)]);
                         //放入队列处理
                         dispatch(new SaveProxyIpJob($host, $ip, $port, $protocol, $anonymity));
                     }
@@ -130,15 +132,25 @@ class ProxyIpBusiness
             } catch (\Exception $exception) {
                 //日志记录
                 app("Logger")->error("抓取URL错误", [
-                    'url'         => $url,
-                    'error_code'  => $exception->getCode(),
-                    'error_msg'   => $exception->getMessage(),
-                    'error_trace' => $exception->getTraceAsString(),
+                    'url' => $url,
+                    'error_code' => $exception->getCode(),
+                    'error_msg' => str_replace(" (see https://curl.haxx.se/libcurl/c/libcurl-errors.html)", "", $exception->getMessage()),
+//                    'error_trace' => "一般都是打不开",
                 ]);
+                if ($exception->getCode() == 0 && ( // 403 500 等都不管，但是0就是异常
+                        strpos($exception->getMessage(), "time out") === true
+                        || strpos($exception->getMessage(), "Failed to connect") === true
+                        || strpos($exception->getMessage(), "timed out") === true // Operation timed out && Connection timed out
+                        || strpos($exception->getMessage(), "Connection reset") === true
+                        || strpos($exception->getMessage(), "Connection refused") === true
+                        || strpos($exception->getMessage(), "isn't loaded") === true
+                        || strpos($exception->getMessage(), "No route to host") === true
+                    )) {
+                    break;
+                }
             }
-
             //延迟10秒抓取下一个网页
-            sleep(10);
+            sleep(3);
         }
     }
 
@@ -165,12 +177,12 @@ class ProxyIpBusiness
                 //
                 $options = [
                     'headers' => [
-                        'Referer'                   => "http://$host/",
-                        'User-Agent'                => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
-                        'Accept'                    => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                        'Referer' => "http://$host/",
+                        'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
+                        'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                         'Upgrade-Insecure-Requests' => "1",
-                        'Host'                      => $host,
-                        'DNT'                       => "1",
+                        'Host' => $host,
+                        'DNT' => "1",
                     ],
                     'timeout' => $this->time_out
                 ];
@@ -197,7 +209,7 @@ class ProxyIpBusiness
                     //获取IP、端口、透明度、协议
                     list($ip, $port, $anonymity, $protocol) = $row;
                     //日志记录
-                    app("Logger")->info("提取到IP", [$host, sprintf("%s://%s:%s", $protocol, $ip, $port)]);
+//                    app("Logger")->info("提取到IP", [$host, sprintf("%s://%s:%s", $protocol, $ip, $port)]);
                     //放入队列处理
                     dispatch(new SaveProxyIpJob($host, $ip, $port, $protocol, $anonymity));
                 }
@@ -207,15 +219,26 @@ class ProxyIpBusiness
             } catch (\Exception $exception) {
                 //日志记录
                 app("Logger")->error("抓取URL错误", [
-                    'url'         => $url,
-                    'error_code'  => $exception->getCode(),
-                    'error_msg'   => $exception->getMessage(),
-                    'error_trace' => $exception->getTraceAsString(),
+                    'url' => $url,
+                    'error_code' => $exception->getCode(),
+                    'error_msg' => str_replace(" (see https://curl.haxx.se/libcurl/c/libcurl-errors.html)", "", $exception->getMessage()),
+//                    'error_trace' => "一般都是打不开",
                 ]);
+                if ($exception->getCode() == 0 && ( // 403 500 等都不管，但是0就是异常
+                        strpos($exception->getMessage(), "time out") === true
+                        || strpos($exception->getMessage(), "Failed to connect") === true
+                        || strpos($exception->getMessage(), "timed out") === true // Operation timed out && Connection timed out
+                        || strpos($exception->getMessage(), "Connection reset") === true
+                        || strpos($exception->getMessage(), "Connection refused") === true
+                        || strpos($exception->getMessage(), "isn't loaded") === true
+                        || strpos($exception->getMessage(), "No route to host") === true
+                    )) {
+                    break;
+                }
             }
 
             //延迟10秒抓取下一个网页
-            sleep(10);
+            sleep(3);
         }
     }
 
@@ -231,13 +254,9 @@ class ProxyIpBusiness
             "http://www.kuaidaili.com/free/inha/",
             "http://www.kuaidaili.com/free/inha/2/",
             "http://www.kuaidaili.com/free/inha/3/",
-            "http://www.kuaidaili.com/free/inha/4/",
-            "http://www.kuaidaili.com/free/inha/5/",
             "http://www.kuaidaili.com/free/intr/",
             "http://www.kuaidaili.com/free/intr/2/",
             "http://www.kuaidaili.com/free/intr/3/",
-            "http://www.kuaidaili.com/free/intr/4/",
-            "http://www.kuaidaili.com/free/intr/5/",
         ];
 
         $this->grabProcess($urls, "#list table tr", function ($tr) {
@@ -245,7 +264,7 @@ class ProxyIpBusiness
             $port = $tr->find('td:eq(1)')->text();
             $anonymity = $tr->find('td:eq(2)')->text() == "高匿名" ? 2 : 1;
             $protocol = strtolower($tr->find('td:eq(3)')->text());
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -260,20 +279,12 @@ class ProxyIpBusiness
         $urls = [
             "http://www.ip3366.net/free/?stype=1&page=1",
             "http://www.ip3366.net/free/?stype=1&page=2",
-            "http://www.ip3366.net/free/?stype=1&page=3",
-            "http://www.ip3366.net/free/?stype=1&page=4",
             "http://www.ip3366.net/free/?stype=2&page=1",
             "http://www.ip3366.net/free/?stype=2&page=2",
-            "http://www.ip3366.net/free/?stype=2&page=3",
-            "http://www.ip3366.net/free/?stype=2&page=4",
             "http://www.ip3366.net/free/?stype=3&page=1",
             "http://www.ip3366.net/free/?stype=3&page=2",
-            "http://www.ip3366.net/free/?stype=3&page=3",
-            "http://www.ip3366.net/free/?stype=3&page=4",
             "http://www.ip3366.net/free/?stype=4&page=1",
             "http://www.ip3366.net/free/?stype=4&page=2",
-            "http://www.ip3366.net/free/?stype=4&page=3",
-            "http://www.ip3366.net/free/?stype=4&page=4",
         ];
 
         $this->grabProcess($urls, "#list table tr", function ($tr) {
@@ -281,7 +292,7 @@ class ProxyIpBusiness
             $port = $tr->find('td:eq(1)')->text();
             $anonymity = str_contains($tr->find('td:eq(2)')->text(), ["高匿"]) ? 2 : 1;
             $protocol = strtolower($tr->find('td:eq(3)')->text());
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
 
     }
@@ -317,7 +328,7 @@ class ProxyIpBusiness
             $port = $tr->find('td:eq(1)')->text();
             $anonymity = 2;
             $protocol = "http";
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -346,7 +357,7 @@ class ProxyIpBusiness
             list($ip, $port) = explode(":", $tr->find('td:eq(0)')->text());
             $protocol = str_contains($tr->find('td:eq(1)')->text(), "HTTPS") ? "https" : "http";
             $anonymity = str_contains($tr->find('td:eq(1)')->text(), "透明") ? 1 : 2;
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -373,7 +384,7 @@ class ProxyIpBusiness
             list($ip, $port) = explode(":", $tr->find('td:eq(0)')->text());
             $protocol = "http";
             $anonymity = 2;
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -390,10 +401,6 @@ class ProxyIpBusiness
             "http://www.qinghuadaili.com/free/4/",
             "http://www.qinghuadaili.com/free/5/",
             "http://www.qinghuadaili.com/free/6/",
-            "http://www.qinghuadaili.com/free/7/",
-            "http://www.qinghuadaili.com/free/8/",
-            "http://www.qinghuadaili.com/free/9/",
-            "http://www.qinghuadaili.com/free/10/",
         ];
 
         $this->grabProcess($urls, ".container-fluid table tbody tr", function ($tr) {
@@ -401,7 +408,7 @@ class ProxyIpBusiness
             $port = trim($tr->find('td:eq(1)')->text());
             $anonymity = str_contains($tr->find('td:eq(2)')->text(), "高匿") ? 2 : 1;
             $protocol = str_contains($tr->find('td:eq(3)')->text(), "HTTPS") ? "https" : "http";
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -415,15 +422,9 @@ class ProxyIpBusiness
             "http://www.kxdaili.com/dailiip.html",
             "http://www.kxdaili.com/dailiip/1/2.html",
             "http://www.kxdaili.com/dailiip/1/3.html",
-            "http://www.kxdaili.com/dailiip/1/4.html",
-            "http://www.kxdaili.com/dailiip/1/5.html",
-            "http://www.kxdaili.com/dailiip/1/6.html",
-            "http://www.kxdaili.com/dailiip/1/7.html",
             "http://www.kxdaili.com/dailiip/2/1.html",
             "http://www.kxdaili.com/dailiip/2/2.html",
             "http://www.kxdaili.com/dailiip/2/3.html",
-            "http://www.kxdaili.com/dailiip/2/4.html",
-            "http://www.kxdaili.com/dailiip/2/5.html",
         ];
 
         $this->grabProcess($urls, ".hot-product-content table tbody tr", function ($tr) {
@@ -431,7 +432,7 @@ class ProxyIpBusiness
             $port = trim($tr->find('td:eq(1)')->text());
             $anonymity = str_contains($tr->find('td:eq(2)')->text(), "高匿") ? 2 : 1;
             $protocol = str_contains($tr->find('td:eq(3)')->text(), "HTTPS") ? "https" : "http";
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -445,30 +446,21 @@ class ProxyIpBusiness
             "http://www.nimadaili.com/putong/",
             "http://www.nimadaili.com/putong/2/",
             "http://www.nimadaili.com/putong/3/",
-            "http://www.nimadaili.com/putong/4/",
-            "http://www.nimadaili.com/putong/5/",
             "http://www.nimadaili.com/gaoni/1/",
             "http://www.nimadaili.com/gaoni/2/",
             "http://www.nimadaili.com/gaoni/3/",
-            "http://www.nimadaili.com/gaoni/4/",
-            "http://www.nimadaili.com/gaoni/5/",
             "http://www.nimadaili.com/http/1/",
             "http://www.nimadaili.com/http/2/",
             "http://www.nimadaili.com/http/3/",
-            "http://www.nimadaili.com/http/4/",
-            "http://www.nimadaili.com/http/5/",
             "http://www.nimadaili.com/https/1/",
             "http://www.nimadaili.com/https/2/",
-            "http://www.nimadaili.com/https/3/",
-            "http://www.nimadaili.com/https/4/",
-            "http://www.nimadaili.com/https/5/",
         ];
 
         $this->grabProcess($urls, "table.fl-table tbody tr", function ($tr) {
             list($ip, $port) = explode(":", $tr->find('td:eq(0)')->text());
             $protocol = str_contains($tr->find('td:eq(1)')->text(), "HTTPS") ? "https" : "http";
             $anonymity = str_contains($tr->find('td:eq(1)')->text(), "普通") ? 1 : 2;
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -496,7 +488,7 @@ class ProxyIpBusiness
             $port = trim($tr->find('td:eq(1)')->text());
             $anonymity = 2;
             $protocol = str_contains($tr->find('td:eq(3)')->text(), "HTTPS") ? "https" : "http";
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -514,13 +506,13 @@ class ProxyIpBusiness
 
         $this->grabProcess($urls, ".cont", function ($tr) {
             $rows = [];
-            $pattern = "/\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}:\d{1,4}@(HTTPS|HTTP)#/";
+            $pattern = "/\d{1,2}\.\d{1,2}\.\d{1,2}\.\d{1,2}:\d{1,2}@(HTTPS|HTTP)#/";
             if (preg_match_all($pattern, $tr->htmls(), $matches)) {
                 foreach ($matches[0] as $item) {
                     $ip = substr($item, 0, strrpos($item, ":"));
                     $port = substr($item, strrpos($item, ":") + 1, strrpos($item, "@") - strrpos($item, ":") - 1);
                     $protocol = substr($item, strrpos($item, "@") + 1, strrpos($item, "#") - strrpos($item, "@") - 1);
-                    $rows[] = [$ip, $port, 2, strtolower($protocol)];
+                    $rows[] = [$ip, $port, 2, "http"];
                 }
             }
             return $rows;
@@ -554,7 +546,7 @@ class ProxyIpBusiness
             $port = trim($tr->find('td:eq(2)')->text());
             $anonymity = str_contains($tr->find('td:eq(4)')->text(), "高匿") ? 2 : 1;
             $protocol = str_contains($tr->find('td:eq(5)')->text(), "HTTPS") ? "https" : "http";
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -580,7 +572,7 @@ class ProxyIpBusiness
                 list($ip, $port) = explode(":", $line);
                 $anonymity = 1;
                 $protocol = "https";
-                $rows[] = [$ip, $port, $anonymity, $protocol];
+                $rows[] = [$ip, $port, $anonymity, "http"];
             }
             return $rows;
         }, true);
@@ -609,9 +601,24 @@ class ProxyIpBusiness
                 list($ip, $port) = explode(":", $line);
                 $anonymity = 1;
                 $protocol = "http";
-                $rows[] = [$ip, $port, $anonymity, $protocol];
+                $rows[] = [$ip, $port, $anonymity, "http"];
             }
             return $rows;
+        }, true);
+    }
+
+    public function proxySeofangfaIp()
+    {
+        $urls = [
+            "https://seofangfa.com/proxy/",
+        ];
+
+        $this->grabProcess($urls, "table tr", function ($tr) {
+            $ip = $tr->find('td:eq(0)')->text();
+            $port = $tr->find('td:eq(1)')->text();
+            $protocol = "http";
+            $anonymity = 1;
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -635,7 +642,7 @@ class ProxyIpBusiness
             $port = trim($tr->find('td:eq(1)')->text());
             $anonymity = 1;
             $protocol = str_contains($tr->find('td:eq(3)')->text(), "https") ? "https" : "http";
-            return [$ip, $port, $anonymity, $protocol];
+            return [$ip, $port, $anonymity, "http"];
         }, true);
     }
 
@@ -658,7 +665,7 @@ class ProxyIpBusiness
                 list($ip, $port) = explode(":", $line);
                 $anonymity = 1;
                 $protocol = "http";
-                $rows[] = [$ip, $port, $anonymity, $protocol];
+                $rows[] = [$ip, $port, $anonymity, "http"];
             }
             return $rows;
         }, false);
@@ -678,10 +685,10 @@ class ProxyIpBusiness
         while (true) {
 
             $condition = [
-                'order_by'   => 'validated_at',
+                'order_by' => 'validated_at',
                 'order_rule' => 'asc',
-                'page'       => $page++,
-                'page_size'  => $page_size
+                'page' => $page++,
+                'page_size' => $page_size
             ];
             $columns = ['unique_id', 'ip', 'port', 'protocol'];
             $proxy_ips = $this->proxy_ip_dao->getProxyIpList($condition, $columns);
@@ -709,6 +716,7 @@ class ProxyIpBusiness
      */
     public function addProxyIp($host, $ip, $port, $protocol, $anonymity)
     {
+        $protocol = "http";
         //查询IP唯一性
         $proxy_ip = $this->proxy_ip_dao->findUniqueProxyIp($ip, $port, $protocol);
         if ($proxy_ip) {
@@ -720,12 +728,12 @@ class ProxyIpBusiness
         $speed = $this->ipSpeedCheck($ip, $port, $protocol);
 
         $ip_data = [
-            'unique_id'    => Helper::unique_id(),
-            'ip'           => $ip,
-            'port'         => $port,
-            'anonymity'    => $anonymity,
-            'protocol'     => $protocol,
-            'speed'        => $speed,
+            'unique_id' => Helper::unique_id(),
+            'ip' => $ip,
+            'port' => $port,
+            'anonymity' => $anonymity,
+            'protocol' => $protocol,
+            'speed' => $speed,
             'validated_at' => Carbon::now(),
         ];
         $proxy_ip = $this->proxy_ip_dao->addProxyIp($ip_data);
@@ -745,25 +753,41 @@ class ProxyIpBusiness
      */
     public function ipLocation($ip)
     {
-        //间隔10秒请求一次
-        sleep(10);
+        $ip2region = new Ip2Region();
+        $info = $ip2region->btreeSearch($ip);
+        $res = explode('|', $info['region']);
 
-        $random = rand(1, 4);
-
-        switch ($random) {
-            case 1:
-                return $this->taobaoIpLocation($ip);
-                break;
-            case  2:
-                return $this->juheIpLocation($ip);
-                break;
-            case 3:
-                return $this->apiIpLocation($ip);
-                break;
-            case 4:
-                return $this->tianqiIpLocation($ip);
-                break;
+        // TODO 如果$res中存在某些值为空，那么从另一个API进行数据获取
+        if (empty($res[4])) {
+            // 间隔10秒请求一次
+            sleep(10);
+            return $this->apiIpLocation($ip);
+        }else{
+            return [
+                'country' => $res[0],
+                'region' => $res[2],
+                'city' => $res[3],
+                'isp' => $res[4],
+            ];
         }
+
+
+//        $random = rand(1, 4);
+
+//        switch ($random) {
+//            case 1: // 失效
+//                return $this->ipapiLocation($ip);
+//                break;
+//            case  2:
+//                return $this->juheIpLocation($ip);
+//                break;
+//            case 3:
+//                return $this->apiIpLocation($ip);
+//                break;
+//            case 4: // 失效
+//                return $this->tianqiIpLocation($ip);
+//                break;
+//        }
     }
 
     /**
@@ -791,6 +815,38 @@ class ProxyIpBusiness
         }
 
         return $data['data'];
+    }
+
+    /**
+     * ipapi获取数据 -- 只有英文的
+     *
+     * @param $ip
+     * @return mixed
+     * @throws JsonException
+     * @author jiangxianli
+     * @created_at 2020-03-02 13:28
+     */
+    private function ipapiLocation($ip)
+    {
+        //API 地址
+        $api = "https://api.ipdata.co/".$ip."?api-key=7e3e87095578105c63bf6b593f3bf7ba75d940f7d1f38dbf267297ec";
+        $client = new Client();
+        $request = $client->request("GET", $api);
+        //响应json数据
+        $json = $request->getBody()->getContents();
+        //转数组格式
+        $data = (array)json_decode($json, true);
+
+        if (!isset($data['country_code'])) {
+            throw new JsonException(90000, $data);
+        }
+
+        return [
+            'country' => $data['country_name'],
+            'region' => $data['continent_name'],
+            'city' => $data['continent_name'],
+            'isp' => $data['asn']['name'],
+        ];
     }
 
 
@@ -824,9 +880,9 @@ class ProxyIpBusiness
 
         return [
             'country' => $data['result']['Country'],
-            'region'  => $data['result']['Province'],
-            'city'    => $data['result']['City'],
-            'isp'     => $data['result']['Isp'],
+            'region' => $data['result']['Province'],
+            'city' => $data['result']['City'],
+            'isp' => $data['result']['Isp'],
         ];
     }
 
@@ -856,9 +912,9 @@ class ProxyIpBusiness
 
         return [
             'country' => $data['country'],
-            'region'  => $data['regionName'],
-            'city'    => $data['city'],
-            'isp'     => $data['isp'],
+            'region' => $data['regionName'],
+            'city' => $data['city'],
+            'isp' => $data['isp'],
         ];
     }
 
@@ -888,9 +944,9 @@ class ProxyIpBusiness
 
         return [
             'country' => $data['country'],
-            'region'  => $data['province'],
-            'city'    => $data['city'],
-            'isp'     => $data['isp'],
+            'region' => $data['province'],
+            'city' => $data['city'],
+            'isp' => $data['isp'],
         ];
     }
 
@@ -909,19 +965,19 @@ class ProxyIpBusiness
         //开始请求毫秒
         $begin_seconds = Helper::mSecondTime();
 
-        $url = "http://www.baidu.com";
-        //
+        $url = "https://api.ipify.org/?format=jsonp&t=" . time(); // MARK 避免走缓存数据 - 且需要一个https的地址
+
         $options = [
             'headers' => [
-                'Referer'                   => $url,
-                'User-Agent'                => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
-                'Accept'                    => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                'Referer' => $url,
+                'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
+                'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 'Upgrade-Insecure-Requests' => "1",
-                'Host'                      => parse_url($url, PHP_URL_HOST),
-                'DNT'                       => "1",
+                'Host' => parse_url($url, PHP_URL_HOST),
+                'DNT' => "1",
             ],
             'timeout' => config('site.speed_limit') / 1000,
-            'proxy'   => "$protocol://$ip:$port"
+            'proxy' => "$protocol://$ip:$port"
         ];
 
         $client = new Client();
@@ -929,22 +985,24 @@ class ProxyIpBusiness
         $content = $request->getBody()->getContents();
 
         //抓取网页内容
-        $ql = QueryList::html($content);
+        // $ql = QueryList::html($content);
         //获取标题
-        $title = $ql->find("title")->eq(0)->text();
+        // $title = $ql->find("title")->eq(0)->text();
         //销毁
-        $ql->destruct();
+        // $ql->destruct();
 
-        if (empty($title) || !str_contains($title, "百度一下")) {
+        if (!str_contains($content, $ip)) {
             throw new JsonException(20000);
         }
 
         $end_seconds = Helper::mSecondTime();
         //总用时 (大于)
         $total_use = intval($end_seconds - $begin_seconds);
-        if ($total_use > config('site.speed_limit')) {
+        if ($total_use > config('site.speed_limit') + 500) {
             throw new JsonException(20001, [config('site.speed_limit'), $total_use]);
         }
+
+        app("Logger")->info("网络畅通", [$ip . ":" . $port], []);
 
         return $total_use;
     }
@@ -1001,9 +1059,9 @@ class ProxyIpBusiness
     public function getNowValidateOneProxyIp()
     {
         $condition = [
-            'order_by'   => 'validated_at',
+            'order_by' => 'validated_at',
             'order_rule' => 'desc',
-            'first'      => 'true'
+            'first' => 'true'
         ];
         $proxy_ip = $this->proxy_ip_dao->getProxyIpList($condition);
 
@@ -1011,7 +1069,7 @@ class ProxyIpBusiness
     }
 
     /**
-     * 代理IP 网页访问测试
+     * 代理IP 手动网页访问测试
      *
      * @param $protocol
      * @param $ip
@@ -1023,14 +1081,86 @@ class ProxyIpBusiness
      */
     public function proxyIpRequestWebSiteCheck($protocol, $ip, $port, $web_link)
     {
+        $begin_seconds = Helper::mSecondTime();
         //代理请求
         $client = new Client();
-        $response = $client->request('GET', $web_link, [
-            'proxy'   => "$protocol://$ip:$port",
-            'timeout' => $this->time_out
-        ]);
 
-        return $response->getBody()->getContents();
+        $content = "请求失败";
+
+        $success = false;
+        $proxy_ip = $this->proxy_ip_dao->findUniqueProxyIp($ip, $port, $protocol);
+        $success_count = $proxy_ip['success_count'];
+        $failed_count = $proxy_ip['failed_count'];
+
+        try {
+            $response = $client->request('GET', $web_link, [
+                'headers' => [
+                    'Referer' => $web_link,
+                    'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
+                    'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    'Upgrade-Insecure-Requests' => "1",
+                    'Host' => parse_url($web_link, PHP_URL_HOST),
+                    'DNT' => "1",
+                ],
+                'proxy' => "$protocol://$ip:$port",
+                'timeout' => $this->time_out
+            ]);
+            $content = $response->getBody()->getContents();
+            $end_success = Helper::mSecondTime();
+            $total_success = intval($end_success - $begin_seconds);
+
+            // 如果是xx网页，且包含特定数据-> 成功
+            // 如果是xx网页，不包含特定数据-> 失败
+            // 如果是普通网页有内容 -> 成功
+            if ( str_contains($web_link, 'pv.sohu.com')  || str_contains($web_link, 'ip-api.com') ){
+                if(str_contains($content, $ip)){
+                    $success = true;
+                }else{
+                    $success = false;
+                }
+            } else if(strlen($content) > 0){
+                $success = true;
+            }
+            // 如果成功时间大于 10000 也算超时
+            if($total_success > 10000){
+                $success = false;
+            }
+        } catch (\Exception $ee) {
+            app(ExceptionHandler::class)->report($ee);
+        } finally {
+            $end_seconds = Helper::mSecondTime();
+            $total_use = intval($end_seconds - $begin_seconds);
+
+            if($success){
+                $success_count ++;
+            }else{
+                $failed_count ++;
+            }
+
+            $total_count = $success_count + $failed_count;
+            $success_ratio = $success_count / $total_count;
+
+            // 计算出成功比例
+            try {
+                if ($total_count > 10) {
+                    // 一天24小时 * 6
+                    // 失败次数较多，尝试删掉他
+                    if ($failed_count / $total_count > 0.4) {
+                        $this->proxy_ip_dao->deleteProxyIp($proxy_ip['unique_id']);
+                    }
+                }
+
+                //更新测速信息
+                $this->updateProxyIp($proxy_ip['unique_id'], [
+                    'speed'        => $total_use,
+                    'validated_at' => Carbon::now(),
+                    'success_count' => $success_count,
+                    'failed_count' => $failed_count,
+                    'success_ratio' => $success_ratio,
+                ]);
+            }catch (\Exception $eee){}
+        }
+        return $content;
     }
 
     /**
@@ -1096,8 +1226,8 @@ class ProxyIpBusiness
         $isp = $this->proxy_ip_dao->allIspList();
         //广告
         $ads = $this->cacheAdList([
-            'area'    => 'web_index',
-            'limit'   => 2,
+            'area' => 'web_index',
+            'limit' => 2,
             'is_show' => "yes",
         ]);
 
@@ -1114,15 +1244,15 @@ class ProxyIpBusiness
     public function initHourBlog()
     {
         $condition = [
-            'order_by'   => 'validated_at',
+            'order_by' => 'validated_at',
             'order_rule' => 'desc',
-            'limit'      => 50
+            'limit' => 50
         ];
         $proxy_ips = $this->proxy_ip_dao->getProxyIpList($condition, ['ip', 'port', 'protocol', 'country', 'anonymity', 'ip_address', 'isp'])->toArray();
 
         $store_data = [
             'date_time' => date("YmdH"),
-            'content'   => json_encode($proxy_ips)
+            'content' => json_encode($proxy_ips)
         ];
         $this->blog_dao->addBlog($store_data);
     }
@@ -1146,8 +1276,8 @@ class ProxyIpBusiness
         $isp = $this->proxy_ip_dao->allIspList();
         //广告
         $ads = $this->cacheAdList([
-            'area'    => 'blog_index',
-            'limit'   => 2,
+            'area' => 'blog_index',
+            'limit' => 2,
             'is_show' => "yes",
         ]);
 
@@ -1163,7 +1293,7 @@ class ProxyIpBusiness
     public function blogDetailPage($blog_id)
     {
         $condition = [
-            'id'    => $blog_id,
+            'id' => $blog_id,
             'first' => 'true'
         ];
         $blog = $this->blog_dao->getBlogList($condition);
@@ -1173,8 +1303,8 @@ class ProxyIpBusiness
         $isp = $this->proxy_ip_dao->allIspList();
         //广告
         $ads = $this->cacheAdList([
-            'area'    => 'blog_detail',
-            'limit'   => 2,
+            'area' => 'blog_detail',
+            'limit' => 2,
             'is_show' => "yes",
         ]);
 
