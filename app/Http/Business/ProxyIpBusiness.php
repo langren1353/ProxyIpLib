@@ -692,10 +692,10 @@ class ProxyIpBusiness
             ];
             $columns = ['unique_id', 'ip', 'port', 'protocol'];
             $proxy_ips = $this->proxy_ip_dao->getProxyIpList($condition, $columns);
+            app("Logger")->info("定时IP检查开始：". $proxy_ips->count());
             if ($proxy_ips->count() <= 0) {
                 break;
             }
-
             foreach ($proxy_ips as $proxy_ip) {
                 dispatch(new ClearProxyIpJob($proxy_ip->toArray()));
             }
@@ -1138,14 +1138,16 @@ class ProxyIpBusiness
             }
 
             $total_count = $success_count + $failed_count;
-            $success_ratio = $success_count / $total_count;
+            $success_ratio = 0;
 
             // 计算出成功比例
             try {
+
                 if ($total_count > 10) {
                     // 一天24小时 * 6
+                    $success_ratio = $success_count / $total_count;
                     // 失败次数较多，尝试删掉他
-                    if ($failed_count / $total_count > 0.4) {
+                    if ($success_ratio < 0.4) {
                         $this->proxy_ip_dao->deleteProxyIp($proxy_ip['unique_id']);
                     }
                 }

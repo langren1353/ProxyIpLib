@@ -67,11 +67,10 @@ class ClearProxyIpJob extends Job
             // 一天24小时 * 6
             $success_ratio = $success_count / $total_count;
             // 失败次数较多，尝试删掉他
-            if($failed_count / $total_count > 0.4){
+            if($success_ratio < 0.4){
                 $proxy_ip_business->deleteProxyIp($proxy_ip['unique_id']);
             }
         }
-
         try {
             //测速及可用性检查
             $speed = $proxy_ip_business->ipSpeedCheck($proxy_ip['ip'], $proxy_ip['port'], $proxy_ip['protocol']);
@@ -84,6 +83,7 @@ class ClearProxyIpJob extends Job
             ]);
         } catch (\Exception $exception) {
             $proxy_ip_business->updateProxyIp($proxy_ip['unique_id'], [
+                'validated_at' => Carbon::now(),
                 'failed_count' => $proxy_ip['failed_count'] + 1,
                 'success_ratio'=> $success_ratio,
             ]);

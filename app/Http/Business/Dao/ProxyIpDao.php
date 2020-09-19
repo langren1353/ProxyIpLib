@@ -182,7 +182,7 @@ class ProxyIpDao
     }
 
     /**
-     * 所有没有定位的IP里诶博爱
+     * 所有没有定位的IP里查询
      *
      * @return mixed
      * @author jiangxianli

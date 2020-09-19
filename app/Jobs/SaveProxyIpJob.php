@@ -95,9 +95,8 @@ class SaveProxyIpJob extends Job
 
         try {
 
-            app("Logger")->info("检测代理", [$this->ip, $this->port, $this->protocol]);
-
-            //速度检测
+            // 速度检测-两次-入库时保证稳定性
+            $proxy_ip_business->ipSpeedCheck($this->ip, $this->port, $this->protocol);
             $proxy_ip_business->ipSpeedCheck($this->ip, $this->port, $this->protocol);
             //添加 代理IP
             $proxy_ip_business->addProxyIp($this->host, $this->ip, $this->port, $this->protocol, $this->anonymity);
