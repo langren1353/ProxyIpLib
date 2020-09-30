@@ -60,7 +60,7 @@ class ProxyIpDao
         if (!empty($condition['lt_validated_at'])) {
             $proxy_ip->where('validated_at', '<=', $condition['lt_validated_at']);
         }
-        //
+        // 排序规则
         if (isset($condition['order_by']) && isset($condition['order_rule'])) {
             $proxy_ip->orderBy($condition['order_by'], strtoupper($condition['order_rule']) == "DESC" ? 'desc' : 'asc');
         }

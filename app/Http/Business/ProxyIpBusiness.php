@@ -965,15 +965,37 @@ class ProxyIpBusiness
         //开始请求毫秒
         $begin_seconds = Helper::mSecondTime();
 
-        $url = "https://api.ipify.org/?format=jsonp&t=" . time(); // MARK 避免走缓存数据 - 且需要一个https的地址
+        // 随机指定节点的取值，这样更能判定稳定性
+        $useCheckList = array(
+            array(
+                'url' => "https://api.ipify.org/?format=jsonp&t=" . time(),
+                'check' => $ip
+            ),
+            array(
+                'url' => "https://www.baidu.com/?t=" . time(),
+                'check' => '百度一下'
+            ),
+            array(
+                'url' => "https://www.so.com/?t=" . time(),
+                'check' => '360'
+            ),
+            array(
+                'url' => "https://api.myip.com/?t=" . time(),
+                'check' => $ip
+            )
+        );
+
+        $useCheckNode = $useCheckList[rand(0, count($useCheckList))];
+        $useCheckUrl = $useCheckNode['url'];
+        $useCheckData = $useCheckNode['check'];
 
         $options = [
             'headers' => [
-                'Referer' => $url,
+                'Referer' => $useCheckUrl,
                 'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
                 'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                 'Upgrade-Insecure-Requests' => "1",
-                'Host' => parse_url($url, PHP_URL_HOST),
+                'Host' => parse_url($useCheckUrl, PHP_URL_HOST),
                 'DNT' => "1",
             ],
             'timeout' => config('site.speed_limit') / 1000,
@@ -981,7 +1003,7 @@ class ProxyIpBusiness
         ];
 
         $client = new Client();
-        $request = $client->request("GET", $url, $options);
+        $request = $client->request("GET", $useCheckUrl, $options);
         $content = $request->getBody()->getContents();
 
         //抓取网页内容
@@ -991,7 +1013,7 @@ class ProxyIpBusiness
         //销毁
         // $ql->destruct();
 
-        if (!str_contains($content, $ip)) {
+        if (!str_contains($content, $useCheckData)) {
             throw new JsonException(20000);
         }
 

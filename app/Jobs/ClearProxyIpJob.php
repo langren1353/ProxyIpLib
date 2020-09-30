@@ -83,6 +83,7 @@ class ClearProxyIpJob extends Job
             ]);
         } catch (\Exception $exception) {
             $proxy_ip_business->updateProxyIp($proxy_ip['unique_id'], [
+//                MARK 其实不使用这个参数之后首页的数据将会是及时可用的数据
                 'validated_at' => Carbon::now(),
                 'failed_count' => $proxy_ip['failed_count'] + 1,
                 'success_ratio'=> $success_ratio,
