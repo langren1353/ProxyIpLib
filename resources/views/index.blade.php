@@ -16,7 +16,7 @@
     @include("layout.header")
 
     <div class="layui-row">
-        <div class="layui-col-md9 ip-tables">
+        <div class="layui-col-md10 layui-col-md-offset1 ip-tables">
             <div class="layui-form">
                 <table class="layui-table">
                     <thead>
