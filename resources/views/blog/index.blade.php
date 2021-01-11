@@ -55,12 +55,12 @@
                 <div class="layui-card-body">
                     <p  >服务器租金贵，加带宽也要钱！难以维持下去，打个广告别介意哈！麻烦动下你们发财的手点击一下广告哈。感激~</p>
                     <hr class="layui-bg-cyan">
-                    @foreach($ads as $ad)
-                        <div class="ad-content">
-                            {!! $ad->ad_content !!}
-                        </div>
-                        <hr class="layui-bg-cyan">
-                    @endforeach
+{{--                    @foreach($ads as $ad)--}}
+{{--                        <div class="ad-content">--}}
+{{--                            {!! $ad->ad_content !!}--}}
+{{--                        </div>--}}
+{{--                        <hr class="layui-bg-cyan">--}}
+{{--                    @endforeach--}}
                     {{--<hr class="layui-bg-cyan">--}}
                     {{--<div class="ad-2">--}}
                     {{--<script id="w2898_10507">(function () {var zy = document.createElement("script");var flowExchange = window.location.protocol.split(":")[0];var http = flowExchange === "https"?"https":"http";zy.src = http+"://exchange.2898.com/index/flowexchange/getGoods?id=10507&sign=c9a7c5527bca21f6ea3654c48b2fcb11";var s = document.getElementsByTagName("script");for(var i=0;i< s.length;i++){if(s[i].id){if(s[i].id == "w2898_10507"){s[i].parentNode.insertBefore(zy, s[i]);continue;}}}})();</script>--}}

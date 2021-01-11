@@ -80,6 +80,11 @@ class ProxyIpDao
             $proxy_ip = $proxy_ip->load($relatives);
         }
 
+        foreach ($proxy_ip as $item) {
+            if ($item && isset($item->ip)) {
+                $item['pporxy'] = $item->ip . ":" . $item->port;
+            }
+        }
         return $proxy_ip;
     }
 

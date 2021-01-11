@@ -79,36 +79,32 @@ class ProxyIpBusiness
     {
         //遍历URL
         foreach ($urls as $url) {
-
             try {
                 //记录抓取的URL
                 app("Logger")->info("抓取URL", [$url]);
                 //获取URL 域名
                 $host = parse_url($url, PHP_URL_HOST);
-                //
                 $options = [
+                    'referer' => true,
                     'headers' => [
-                        'Referer' => "http://$host/",
+//                        'Referer' => "http://$host/",
                         'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
                         'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                         'Upgrade-Insecure-Requests' => "1",
-                        'Host' => $host,
-                        'DNT' => "1",
+//                        'Host' => $host,
+                        'DNT' => "1"
                     ],
                     'timeout' => $this->time_out
                 ];
-
-                //使用代理IP抓取
+                //使用代理IP抓取 - 小心这里
                 if ($user_proxy) {
                     $proxy_ip = $this->getNowValidateOneProxyIp();
                     if ($proxy_ip) {
                         $options['proxy'] = $proxy_ip->protocol . "://" . $proxy_ip->ip . ":" . $proxy_ip->port;
                     }
                 }
-
                 $client = new Client();
                 $request = $client->request("GET", $url, $options);
-
                 //抓取网页内容
                 $ql = QueryList::html($request->getBody()->getContents());
                 //选中数据列表Table
@@ -126,14 +122,13 @@ class ProxyIpBusiness
                         dispatch(new SaveProxyIpJob($host, $ip, $port, $protocol, $anonymity));
                     }
                 });
-
                 unset($ql, $table);
-
             } catch (\Exception $exception) {
                 //日志记录
                 app("Logger")->error("抓取URL错误", [
                     'url' => $url,
                     'error_code' => $exception->getCode(),
+                    'error_line' => $exception->getLine(),
                     'error_msg' => str_replace(" (see https://curl.haxx.se/libcurl/c/libcurl-errors.html)", "", $exception->getMessage()),
 //                    'error_trace' => "一般都是打不开",
                 ]);
@@ -176,18 +171,19 @@ class ProxyIpBusiness
                 $host = parse_url($url, PHP_URL_HOST);
                 //
                 $options = [
+                    'referer' => true,
                     'headers' => [
-                        'Referer' => "http://$host/",
+//                        'Referer' => "http://$host/",
                         'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
                         'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                        'Upgrade-Insecure-Requests' => "1",
-                        'Host' => $host,
+//                        'Upgrade-Insecure-Requests' => "1",
+//                        'Host' => $host,
                         'DNT' => "1",
                     ],
                     'timeout' => $this->time_out
                 ];
 
-                //使用代理IP抓取
+                //使用代理IP抓取 - 小心这里
                 if ($user_proxy) {
                     $proxy_ip = $this->getNowValidateOneProxyIp();
                     if ($proxy_ip) {
@@ -306,21 +302,21 @@ class ProxyIpBusiness
     public function grab89Ip()
     {
         $urls = [
-            "http://www.89ip.cn/index_1.html",
-            "http://www.89ip.cn/index_2.html",
-            "http://www.89ip.cn/index_3.html",
-            "http://www.89ip.cn/index_4.html",
-            "http://www.89ip.cn/index_5.html",
-            "http://www.89ip.cn/index_6.html",
-            "http://www.89ip.cn/index_7.html",
-            "http://www.89ip.cn/index_8.html",
-            "http://www.89ip.cn/index_9.html",
-            "http://www.89ip.cn/index_10.html",
-            "http://www.89ip.cn/index_11.html",
-            "http://www.89ip.cn/index_12.html",
-            "http://www.89ip.cn/index_13.html",
-            "http://www.89ip.cn/index_14.html",
-            "http://www.89ip.cn/index_15.html",
+            "https://www.89ip.cn/index_1.html",
+            "https://www.89ip.cn/index_2.html",
+            "https://www.89ip.cn/index_3.html",
+            "https://www.89ip.cn/index_4.html",
+            "https://www.89ip.cn/index_5.html",
+            "https://www.89ip.cn/index_6.html",
+            "https://www.89ip.cn/index_7.html",
+            "https://www.89ip.cn/index_8.html",
+            "https://www.89ip.cn/index_9.html",
+            "https://www.89ip.cn/index_10.html",
+            "https://www.89ip.cn/index_11.html",
+            "https://www.89ip.cn/index_12.html",
+            "https://www.89ip.cn/index_13.html",
+            "https://www.89ip.cn/index_14.html",
+            "https://www.89ip.cn/index_15.html",
         ];
 
         $this->grabProcess($urls, "table.layui-table tbody tr", function ($tr) {
@@ -991,11 +987,11 @@ class ProxyIpBusiness
 
         $options = [
             'headers' => [
-                'Referer' => $useCheckUrl,
+//                'Referer' => $useCheckUrl,
                 'User-Agent' => "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.3 Safari/537.36",
                 'Accept' => "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                'Upgrade-Insecure-Requests' => "1",
-                'Host' => parse_url($useCheckUrl, PHP_URL_HOST),
+//                'Upgrade-Insecure-Requests' => "1",
+//                'Host' => parse_url($useCheckUrl, PHP_URL_HOST),
                 'DNT' => "1",
             ],
             'timeout' => config('site.speed_limit') / 1000,
@@ -1078,10 +1074,11 @@ class ProxyIpBusiness
      * @author jiangxianli
      * @created_at 2017-12-25 14:59:57
      */
+    // TODO 其实这里很容易出现再也无法入库的问题
     public function getNowValidateOneProxyIp()
     {
         $condition = [
-            'order_by' => 'validated_at',
+            'order_by' => 'success_ratio',
             'order_rule' => 'desc',
             'first' => 'true'
         ];
